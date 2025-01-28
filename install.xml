@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+  <code>deepl-tranlation</code>
+  <name>DeeplTranslation</name>
+  <version>1.0</version>
+  <author>koder.kim</author>
+  <link>https://koder.pp.ua/</link>
+  <file path="admin/controller/startup/permission.php">
+    <operation>
+      <search><![CDATA[
+      if (isset($part[2]) && in_array($route, $extension)) {
+      ]]></search>
+      <add position="before"><![CDATA[
+      $extension[] = 'extension/translate';
+      ]]></add>
+    </operation>
+  </file>
+  <file path="admin/view/template/catalog/product_form.twig">
+    <operation>
+      <search><![CDATA[
+      <div class="tab-pane" id="language{{ language.language_id }}">
+      ]]></search>
+      <add position="after"><![CDATA[
+                    <div class="dtl-wrap">
+                      <a href="javascript:void(0)" onclick="dtl_source(this, '{{ language.code }}')">Translate all (as source)</a>
+                    </div>
+      ]]></add>
+    </operation>
+    <operation>
+      <search><![CDATA[
+      {{ footer }}
+      ]]></search>
+      <add position="before"><![CDATA[
+<script>
+function decodeHtml(str){
+var map = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#039;': "'"
+};
+return str.replace(/&amp;|&lt;|&gt;|&quot;|&#039;/g, function(m){return map[m];});
+}
+function dtl_source(el, source_lang){
+let text = {};
+let elText = el.innerHTML;
+
+{% for language in languages %}
+text['{{ language.code }}'] = {};
+text['{{ language.code }}']['title'] = document.querySelector('input[name="product_description[{{ language.language_id }}][name]"]').value;
+text['{{ language.code }}']['description'] = $('textarea[name="product_description[{{ language.language_id }}][description]"]').summernote('code');
+{% endfor %}
+
+$.ajax({
+  url: 'index.php?route=extension/translate/dtl/send&user_token={{ user_token }}',
+  method: 'post',
+  dataType: 'json',
+  data: {
+    'source_lang': source_lang,
+    'text': JSON.stringify(text)
+  },
+  beforeSend: function(){
+    el.innerHTML = 'Currently being translated. Please wait ...';
+    el.style.pointerEvents = 'none';
+  },
+  success: function(resp){
+    {% for language in languages %}
+    if(resp['{{ language.code }}']){
+      document.querySelector('input[name="product_description[{{ language.language_id }}][name]"]').value = resp['{{ language.code }}']['translations'][0]['text'];
+      $('textarea[name="product_description[{{ language.language_id }}][description]"]').summernote('code', decodeHtml(resp['{{ language.code }}']['translations'][1]['text']));
+    }
+    {% endfor %}
+  },
+  complete: function(){
+    el.innerHTML = 'Done';
+    setTimeout(function(){
+      el.innerHTML = elText;
+      el.style.pointerEvents = 'auto';
+    }, 3000);
+  }
+});
+}
+</script>
+      ]]></add>
+    </operation>
+  </file>
+</modification>
